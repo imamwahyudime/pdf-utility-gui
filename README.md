@@ -2,6 +2,9 @@
 
 A simple desktop application for splitting and merging PDF files.
 
+[![Release Date](https://img.shields.io/badge/Release-April%2025,%202025-brightgreen.svg)](https://github.com/imamwahyudime/brainbox-webapp/releases/tag/v0.0.9)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 ## Description:
 
 This application, built with Python and Tkinter, provides a user-friendly interface for performing two common PDF manipulation tasks:
