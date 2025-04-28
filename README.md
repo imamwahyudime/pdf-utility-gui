@@ -47,7 +47,7 @@ This application, built with Python and Tkinter, provides a user-friendly interf
     ```
 
     * **Poppler:** `pdf2image` requires Poppler to be installed on your system.
-        * **Windows:** Download Poppler from a suitable source (e.g., [https://github.com/oschwartz1061/poppler-windows/releases](https://github.com/oschwartz1061/poppler-windows/releases)) and extract it.  Add the `bin` directory to your system's `PATH` environment variable.
+        * **Windows:** Download Poppler from a suitable source (e.g., [https://github.com/oschwartz10612/poppler-windows/releases/](https://github.com/oschwartz10612/poppler-windows/releases/)) and extract it.  Add the `bin` directory to your system's `PATH` environment variable.
         * **Linux (Debian/Ubuntu):** `sudo apt-get install poppler-utils`
         * **macOS:** `brew install poppler` (using Homebrew)
 
