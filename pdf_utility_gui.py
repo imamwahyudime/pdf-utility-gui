@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
-import sys  # Added for sys.exit() in the dependency checker
+import sys  # For sys.exit() in the dependency checker and perform_dependency_check
 import threading
 import io
 import webbrowser
@@ -20,7 +20,6 @@ AUTHOR_NAME = "Imam Wahyudi"
 GITHUB_URL = "https://github.com/imamwahyudime"
 LINKEDIN_URL = "https://www.linkedin.com/in/imam-wahyudi/"
 
-
 # --- Dependency Check Function ---
 def perform_dependency_check():
     """
@@ -32,19 +31,19 @@ def perform_dependency_check():
 
     # Check PyPDF2
     try:
-        import PyPDF2
+        import PyPDF2 # This import is just for the check
     except ImportError:
         missing_libs_info.append(("PyPDF2", "pip install PyPDF2"))
 
     # Check Pillow
     try:
-        from PIL import Image
+        from PIL import Image # This import is just for the check
     except ImportError:
         missing_libs_info.append(("Pillow", "pip install Pillow"))
 
     # Check pdf2image
     try:
-        import pdf2image
+        import pdf2image # This import is just for the check
     except ImportError:
         missing_libs_info.append(("pdf2image", "pip install pdf2image"))
         poppler_note_needed_if_pdf2image_missing = True
@@ -74,19 +73,16 @@ def perform_dependency_check():
         temp_root.destroy()
         sys.exit(1)  # Exit the script
 
-# --- Backend Logic ---
-# These imports are moved here. If perform_dependency_check() fails, script exits before these.
-# If it passes, these imports will succeed.
-import PyPDF2
-from PIL import Image # Actual import for use by the application
-from pdf2image import convert_from_path # Actual import for use
+# --- Backend Logic Function Definitions ---
+# Note: PyPDF2, PIL.Image, and pdf2image.convert_from_path will be imported
+# in the if __name__ == "__main__": block if the dependency check passes.
+# These functions will then use those globally imported modules.
 
 def natural_sort_key(s):
     """
     Key function for natural sorting (handles numbers correctly).
     Input 's' is expected to be a full path or just a filename.
     """
-    # Extract filename if full path is given, for consistent sorting based on filename
     filename_part = os.path.basename(s)
     return [int(text) if text.isdigit() else text.lower()
             for text in re.split('([0-9]+)', filename_part)]
@@ -108,12 +104,12 @@ def split_pdf_to_pdfs(input_path, output_dir, status_callback, progress_callback
                 return False
 
         base_filename = os.path.splitext(os.path.basename(input_path))[0]
-        reader = PyPDF2.PdfReader(input_path)
+        reader = PyPDF2.PdfReader(input_path) # PyPDF2 used here
         num_pages = len(reader.pages)
         progress_callback(0, num_pages)
 
         for i, page in enumerate(reader.pages):
-            writer = PyPDF2.PdfWriter()
+            writer = PyPDF2.PdfWriter() # PyPDF2 used here
             writer.add_page(page)
             output_filename = os.path.join(output_dir, f"{base_filename}_page_{i + 1}.pdf")
             with open(output_filename, "wb") as output_pdf:
@@ -123,7 +119,7 @@ def split_pdf_to_pdfs(input_path, output_dir, status_callback, progress_callback
 
         status_callback("Splitting to PDFs complete.")
         return True
-    except PyPDF2.errors.PdfReadError:
+    except PyPDF2.errors.PdfReadError: # PyPDF2 used here
         messagebox.showerror("Error", f"Invalid or corrupted PDF file: {input_path}")
         status_callback(f"Error splitting: Invalid PDF {os.path.basename(input_path)}")
         return False
@@ -153,9 +149,8 @@ def split_pdf_to_images(input_path, output_dir, img_format, status_callback, pro
         poppler_path_arg = {"poppler_path": POPPLER_PATH} if POPPLER_PATH else {}
         
         try:
-            images = convert_from_path(input_path, **poppler_path_arg)
-        except Exception as e_convert: # Catching a broad exception to check for Poppler issues
-            # Attempt to identify Poppler-related errors
+            images = convert_from_path(input_path, **poppler_path_arg) # pdf2image.convert_from_path used here
+        except Exception as e_convert:
             error_str = str(e_convert).lower()
             error_type_str = str(type(e_convert)).lower()
             if "poppler" in error_str or \
@@ -164,55 +159,47 @@ def split_pdf_to_images(input_path, output_dir, img_format, status_callback, pro
                "filenotfounderror" in error_type_str and "pdf" in error_str or \
                "pdftoolsnotinstallederror" in error_type_str or \
                "pdffilenotfounderror" in error_type_str or \
-               "pdfinfo" in error_type_str : # common Poppler / pdf tool error indicators
+               "pdfinfo" in error_type_str :
                 messagebox.showerror("Poppler Error",
                                      "Poppler utility not found or failed during execution.\n"
-                                     "Ensure Poppler is installed and its 'bin' directory is in your system PATH,\n"
+                                     "Ensure Poppler is installed and in your system PATH,\n"
                                      "or set the POPPLER_PATH variable in the script.\n\n"
                                      f"Details: {e_convert}")
-                status_callback(f"Error: Poppler execution failed. Details: {e_convert}")
+                status_callback(f"Error: Poppler execution failed: {e_convert}")
                 return False
-            # If it's not a known Poppler error, re-raise to be caught by the generic handler
-            raise
+            raise 
 
-        progress_callback(1, 1) # Mark poppler conversion step as done
+        progress_callback(1, 1)
 
         num_pages = len(images)
-        progress_callback(0, num_pages) # Reset progress for image saving
+        progress_callback(0, num_pages)
         base_filename = os.path.splitext(os.path.basename(input_path))[0]
         img_format_lower = img_format.lower()
         if img_format_lower not in ['jpg', 'png']:
-            # This case should ideally be prevented by GUI constraints
-            messagebox.showerror("Error", f"Unsupported image format: {img_format}")
-            status_callback(f"Error: Unsupported image format {img_format}")
-            return False
+            raise ValueError("Invalid image format selected.")
 
-
-        for i, image in enumerate(images):
+        for i, image in enumerate(images): # PIL.Image object from pdf2image
             output_filename = os.path.join(output_dir, f"{base_filename}_page_{i + 1}.{img_format_lower}")
             if img_format_lower == 'jpg' and image.mode == 'RGBA':
-                image = image.convert('RGB')
-            image.save(output_filename, format=img_format_lower.upper())
+                image = image.convert('RGB') # PIL.Image used here
+            image.save(output_filename, format=img_format_lower.upper()) # PIL.Image used here
             status_callback(f"Saved: {os.path.basename(output_filename)}")
             progress_callback(i + 1, num_pages)
 
         status_callback("Splitting to images complete.")
         return True
-    # ImportError for Pillow or pdf2image should have been caught by perform_dependency_check
-    # but kept here as a fallback if the script structure changes or for module-level issues.
-    except ImportError as e: # e.g. if a sub-module of an installed library is missing
-        messagebox.showerror("Import Error", f"A required library is not fully functional: {e}.\nPlease try reinstalling it.")
-        status_callback(f"Error: Missing component of a required library: {e}")
+    except ImportError: # Should ideally be caught by perform_dependency_check now
+        messagebox.showerror("Error", "Pillow or pdf2image library not found. Please install them (e.g., pip install Pillow pdf2image).")
+        status_callback("Error: Missing required library for image splitting.")
         return False
     except Exception as e:
-        # Generic error catcher for other unexpected issues during image splitting
         messagebox.showerror("Error", f"An error occurred during image splitting:\n{e}")
         status_callback(f"Error splitting to images: {e}")
         return False
 
 
 def merge_pdfs(input_sources_list_or_path, output_path, status_callback, progress_callback):
-    writer = PyPDF2.PdfWriter()
+    writer = PyPDF2.PdfWriter() # PyPDF2 used here
     actual_files_to_process = []
 
     if isinstance(input_sources_list_or_path, list):
@@ -225,7 +212,6 @@ def merge_pdfs(input_sources_list_or_path, output_path, status_callback, progres
             status_callback(f"Scanning folder: {folder}")
             try:
                 filenames_in_folder = os.listdir(folder)
-                # Create full paths then sort
                 full_paths_in_folder = [os.path.join(folder, fn) for fn in filenames_in_folder if fn.lower().endswith((".pdf", ".jpg", ".jpeg", ".png"))]
                 actual_files_to_process = sorted(full_paths_in_folder, key=natural_sort_key)
             except OSError as e:
@@ -265,36 +251,31 @@ def merge_pdfs(input_sources_list_or_path, output_path, status_callback, progres
         try:
             file_ext = filepath.lower().split('.')[-1]
             if file_ext in ("jpg", "jpeg", "png"):
-                image = Image.open(filepath)
-                if image.mode == 'RGBA' or image.mode == 'P': # Handle palettized images
+                image = Image.open(filepath) # PIL.Image used here
+                if image.mode == 'RGBA' or image.mode == 'P':
                     image = image.convert('RGB')
                 pdf_bytes_io = io.BytesIO()
-                # Ensure save_all=False for single image, and handle potential multi-frame GIFs gracefully (takes first frame)
-                image.save(pdf_bytes_io, format='PDF', resolution=100.0, save_all=False) 
+                image.save(pdf_bytes_io, format='PDF', resolution=100.0, save_all=False)
                 pdf_bytes_io.seek(0)
                 
-                # Validate the created PDF from image before appending
                 try:
-                    img_pdf_reader = PyPDF2.PdfReader(pdf_bytes_io)
+                    img_pdf_reader = PyPDF2.PdfReader(pdf_bytes_io) # PyPDF2 used here
                     if not img_pdf_reader.pages:
-                        raise PyPDF2.errors.PdfReadError("Converted image resulted in an empty PDF.")
-                    writer.append(fileobj=pdf_bytes_io) # Append in-memory PDF
-                except PyPDF2.errors.PdfReadError as img_pdf_err:
+                        raise PyPDF2.errors.PdfReadError("Converted image resulted in an empty PDF.") # PyPDF2 used here
+                    writer.append(fileobj=pdf_bytes_io) 
+                except PyPDF2.errors.PdfReadError as img_pdf_err: # PyPDF2 used here
                     status_callback(f"Skipping image {base_filename}: conversion to PDF failed or resulted in invalid PDF. Error: {img_pdf_err}")
                     files_skipped +=1
                     continue
-
+                
                 successful_merges += 1
                 status_callback(f"Converted and appended image: {base_filename}")
             elif file_ext == "pdf":
                 try:
-                    # Add a check for encrypted PDFs that cannot be opened
-                    pdf_to_append_reader = PyPDF2.PdfReader(filepath)
+                    pdf_to_append_reader = PyPDF2.PdfReader(filepath) # PyPDF2 used here
                     if pdf_to_append_reader.is_encrypted:
                         try:
-                            # Attempt to decrypt with an empty password, common for some "locked" PDFs
-                            # More complex password handling is outside current scope
-                            if pdf_to_append_reader.decrypt("") == PyPDF2. PasswortStates.WRONG_PASSWORD: # Corrected enum
+                            if pdf_to_append_reader.decrypt("") == PyPDF2.PasswordStates.WRONG_PASSWORD: # PyPDF2 used here
                                 status_callback(f"Skipping encrypted PDF (password protected): {base_filename}")
                                 files_skipped +=1
                                 continue
@@ -303,16 +284,14 @@ def merge_pdfs(input_sources_list_or_path, output_path, status_callback, progres
                             files_skipped += 1
                             continue
                     
-                    # If not encrypted or successfully decrypted with empty password
-                    writer.append(filepath) 
+                    writer.append(filepath) # PyPDF2 used here
                     successful_merges += 1
                     status_callback(f"Appended PDF: {base_filename}")
-
-                except PyPDF2.errors.PdfReadError as read_err:
+                except PyPDF2.errors.PdfReadError as read_err: # PyPDF2 used here
                     status_callback(f"Skipping invalid/corrupted PDF: {base_filename}. Error: {read_err}")
                     files_skipped +=1
                     continue
-                except Exception as append_err: # Catch other append errors
+                except Exception as append_err:
                     status_callback(f"Error appending PDF {base_filename}: {append_err}. Skipping.")
                     files_skipped += 1
                     continue
@@ -323,7 +302,7 @@ def merge_pdfs(input_sources_list_or_path, output_path, status_callback, progres
         except FileNotFoundError:
             status_callback(f"File not found during merge: {base_filename}. Skipping.")
             files_skipped += 1
-        except Image.UnidentifiedImageError:
+        except Image.UnidentifiedImageError: # PIL.Image used here
             status_callback(f"Cannot identify or open image file: {base_filename}. Skipping.")
             files_skipped += 1
         except Exception as e:
@@ -482,78 +461,66 @@ class PdfUtilityApp:
             filepath = filedialog.askopenfilename(title="Select Input PDF File", filetypes=[("PDF Files", "*.pdf"), ("All Files", "*.*")])
             if filepath:
                 self.input_path.set(filepath)
-                # Smartly set output dir only if it's currently empty or not a valid dir for the new input
                 current_output_dir = self.output_path.get()
                 new_output_dir_candidate = os.path.dirname(filepath)
                 if not current_output_dir or not os.path.isdir(current_output_dir) or \
                    (current_output_dir != new_output_dir_candidate and \
                     messagebox.askyesno("Update Output Path?", f"Update output directory to input PDF's directory?\n({new_output_dir_candidate})")):
                     self.output_path.set(new_output_dir_candidate)
-                self._selected_merge_files = [] # Clear merge selection
+                self._selected_merge_files = []
         elif mode == "merge":
             filepaths = filedialog.askopenfilenames(
                 title="Select Input PDF and Image Files",
                 filetypes=[("Supported Files", "*.pdf *.jpg *.jpeg *.png"), ("PDF Files", "*.pdf"), ("Image Files", "*.jpg *.jpeg *.png"), ("All Files", "*.*")])
             if filepaths:
-                # Sort naturally upon selection
                 self._selected_merge_files = sorted(list(filepaths), key=natural_sort_key)
                 self.input_path.set(f"{len(self._selected_merge_files)} file(s) selected")
-                
-                # Smartly set output file only if it's currently unset or a default name in a different dir
                 current_output_file = self.output_path.get()
                 if self._selected_merge_files:
                     candidate_dir = os.path.dirname(self._selected_merge_files[0])
                     candidate_output_file = os.path.join(candidate_dir, "merged_output.pdf")
-                    
                     if not current_output_file or \
                        os.path.basename(current_output_file) == "merged_output.pdf" or \
                        (os.path.dirname(current_output_file) != candidate_dir and \
                         messagebox.askyesno("Update Output Path?", f"Set output to '{candidate_output_file}'?")):
                         self.output_path.set(candidate_output_file)
 
-
     def _select_output(self):
         mode = self.mode.get()
         current_output_val = self.output_path.get()
-        initial_dir_val = os.getcwd() # Default fallback
+        initial_dir_val = os.getcwd() 
 
-        # Determine initial directory more robustly
         if current_output_val:
             if os.path.isdir(current_output_val):
                 initial_dir_val = current_output_val
-            elif os.path.isfile(current_output_val): # Path is a file
+            elif os.path.isfile(current_output_val): 
                 initial_dir_val = os.path.dirname(current_output_val)
-            # If just a filename with no dir, dirname might be empty, os.getcwd() is better
-            elif not os.path.dirname(current_output_val) and current_output_val: # e.g. "output.pdf"
-                 pass # Let initial_dir_val remain os.getcwd()
-            else: # Fallback if current_output_val is strange
+            elif not os.path.dirname(current_output_val) and current_output_val: 
+                 pass 
+            else: 
                 initial_dir_val = os.path.dirname(current_output_val) if os.path.dirname(current_output_val) else os.getcwd()
 
-        # Further refinement based on input if output isn't guiding
         if not current_output_val or (os.path.basename(current_output_val) in ["", "merged_output.pdf"] and mode == "merge"):
             if mode == "split" and self.input_path.get() and os.path.isfile(self.input_path.get()):
                  initial_dir_val = os.path.dirname(self.input_path.get())
             elif mode == "merge" and self._selected_merge_files:
                  initial_dir_val = os.path.dirname(self._selected_merge_files[0])
-            elif self.input_path.get(): # Typed input path
+            elif self.input_path.get(): 
                 typed_input = self.input_path.get()
                 if os.path.isdir(typed_input): initial_dir_val = typed_input
                 elif os.path.isfile(typed_input): initial_dir_val = os.path.dirname(typed_input)
         
-        # Ensure initial_dir_val is an actual directory
         if not os.path.isdir(initial_dir_val):
             initial_dir_val = os.getcwd()
-
 
         if mode == "split":
             dirpath = filedialog.askdirectory(title="Select Output Directory", initialdir=initial_dir_val)
             if dirpath: self.output_path.set(dirpath)
         elif mode == "merge":
-            # Suggest filename based on current output path or default
             initial_file = os.path.basename(current_output_val) if current_output_val and not os.path.isdir(current_output_val) else "merged_output.pdf"
             filepath = filedialog.asksaveasfilename(
                 title="Save Merged PDF As...", initialdir=initial_dir_val, initialfile=initial_file,
-                defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")]) # Simplified filetypes
+                defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")]) 
             if filepath: self.output_path.set(filepath)
 
     def _update_status(self, message):
@@ -568,23 +535,20 @@ class PdfUtilityApp:
     def _processing_finished(self, success):
         self.action_button.config(state='normal')
         if success:
-            final_message = self.status_label.cget("text") # Get the detailed message from the worker
+            final_message = self.status_label.cget("text") 
             if "complete" in final_message.lower() or "output" in final_message.lower() or "merged" in final_message.lower():
-                 messagebox.showinfo("Success", final_message) # Show the detailed success in the dialog
-                 self._update_status(final_message) # And keep it in the status bar
-            else: # Generic success
+                 messagebox.showinfo("Success", final_message) 
+                 self._update_status(final_message) 
+            else: 
                  messagebox.showinfo("Success", "Processing completed successfully!")
                  self._update_status("Done. Processing completed successfully.")
         else:
-            # Error messages are shown by the worker functions or _start_processing_thread
-            # So, just update status if not already an error.
             current_status = self.status_label.cget("text")
             if not any(err_keyword in current_status.lower() for err_keyword in ["error", "failed", "skipping", "invalid"]):
                 self._update_status("Failed. See error messages shown or console for details.")
         
-        # Reset progress bar after a short delay if it was maxed out or if there was a failure
         if success and self.progress_bar['value'] == self.progress_bar['maximum']:
-             self.root.after(1000, lambda: self._update_progress(0,1)) # Delay reset on success
+             self.root.after(1000, lambda: self._update_progress(0,1)) 
         elif not success:
              self.root.after(500, lambda: self._update_progress(0,1))
 
@@ -595,12 +559,10 @@ class PdfUtilityApp:
         mode = self.mode.get()
         actual_input_source_for_processing = None
 
-        # Validate output path
         if not output_target:
             messagebox.showerror("Error", f"Please select or enter an output {'directory' if mode == 'split' else 'file path'}.")
             return
 
-        # Validate input based on mode
         if mode == "split":
             if not typed_input_path:
                 messagebox.showerror("Error", "Please select or enter an input PDF file.")
@@ -612,7 +574,6 @@ class PdfUtilityApp:
                  messagebox.showerror("Error", f"Input for splitting must be a PDF file. Selected: {os.path.basename(typed_input_path)}")
                  return
             actual_input_source_for_processing = typed_input_path
-            # Ensure output for split is a directory
             if not os.path.isdir(output_target):
                 try:
                     os.makedirs(output_target, exist_ok=True)
@@ -624,13 +585,11 @@ class PdfUtilityApp:
             if self._selected_merge_files and typed_input_path == f"{len(self._selected_merge_files)} file(s) selected":
                 actual_input_source_for_processing = self._selected_merge_files
             elif typed_input_path and (os.path.isfile(typed_input_path) or os.path.isdir(typed_input_path)):
-                # Allow single file or folder path to be typed directly for merging
                 actual_input_source_for_processing = typed_input_path
             else:
                 messagebox.showerror("Error", "Please select input files, or enter a valid input file/folder path for merging.")
                 return
             
-            # Ensure output for merge is a file path and its directory exists
             output_dir_merge = os.path.dirname(output_target)
             if not output_target.lower().endswith(".pdf"):
                 messagebox.showerror("Error", f"Output for merging must be a PDF file (e.g., merged.pdf). Current: {output_target}")
@@ -643,21 +602,19 @@ class PdfUtilityApp:
                 except OSError as e:
                     messagebox.showerror("Error", f"Output directory '{output_dir_merge}' for merged file does not exist and cannot be created: {e}")
                     return
-            elif not output_dir_merge and not os.path.isdir(os.getcwd()): # Saving to root of a non-existent drive?
+            elif not output_dir_merge and not os.path.isdir(os.getcwd()): 
                 messagebox.showerror("Error", f"Cannot determine a valid output directory for: {output_target}")
                 return
         
-        # Check write permissions
         check_output_location = output_target if mode == "split" else os.path.dirname(output_target)
         if not check_output_location: check_output_location = os.getcwd() 
 
         if not os.access(check_output_location, os.W_OK):
             messagebox.showwarning("Permission Warning", f"Application may not have write permissions for the output location: {check_output_location}\nPlease check permissions if processing fails.")
-            # Not returning, to allow user to try anyway.
 
         self.action_button.config(state='disabled')
         self._update_status("Starting processing...")
-        self._update_progress(0, 1) # Initial progress state
+        self._update_progress(0, 1) 
 
         args = ()
         target_func = None
@@ -682,19 +639,15 @@ class PdfUtilityApp:
             self.action_button.config(state='normal')
             self._update_status("Error: Invalid mode or options.")
 
-
     def _run_task(self, func, args):
         success = False
         try:
-            # Ensure progress bar is somewhat responsive at the start if task is quick
             self.root.after(0, self._update_progress, (args[0], 1, 100) if func == merge_pdfs and isinstance(args[0],list) else (1,2) )
             success = func(*args)
         except Exception as e:
-            # This is a fallback critical error handler
             print(f"Critical Error in processing thread for function {func.__name__}: {e}")
             import traceback
             traceback.print_exc() 
-            # Ensure a messagebox is shown from the main thread
             self.root.after(0, messagebox.showerror, "Critical Background Error", f"An unexpected error occurred in the background task:\n{e}")
             self.root.after(0, self._update_status, f"Critical Error: {e}")
             success = False
@@ -704,11 +657,10 @@ class PdfUtilityApp:
     def _show_about_dialog(self):
         about_win = tk.Toplevel(self.root)
         about_win.title(f"About {self.root.title()}")
-        # Increased height to accommodate more text comfortably
         about_win.geometry("400x320") 
         about_win.resizable(False, False)
-        about_win.transient(self.root) # Stays on top of the main window
-        about_win.grab_set() # Modal behavior
+        about_win.transient(self.root) 
+        about_win.grab_set() 
 
         main_frame = ttk.Frame(about_win, padding="20")
         main_frame.pack(expand=True, fill="both")
@@ -729,14 +681,12 @@ class PdfUtilityApp:
         li_label.pack(pady=2)
         li_label.bind("<Button-1>", lambda e: open_link(LINKEDIN_URL))
         
-        # Added a brief description of the tool
         ttk.Label(main_frame, text="\nA simple tool for splitting and merging PDF files,\nand converting PDF pages to images.", justify="center").pack(pady=(5,5))
-        ttk.Label(main_frame, text="Powered by PyPDF2, Pillow, and pdf2image.").pack(pady=(5,10)) # Adjusted padding
+        ttk.Label(main_frame, text="Powered by PyPDF2, Pillow, and pdf2image.").pack(pady=(5,10)) 
         
-        ttk.Button(main_frame, text="Close", command=about_win.destroy, style="Accent.TButton" if "Accent.TButton" in self.style.theme_names() else "TButton").pack(pady=(10,0)) # Larger button maybe
+        ttk.Button(main_frame, text="Close", command=about_win.destroy, style="Accent.TButton" if "Accent.TButton" in self.style.theme_names() else "TButton").pack(pady=(10,0)) 
         
-        # Center dialog on parent
-        about_win.update_idletasks() # Ensure dimensions are calculated
+        about_win.update_idletasks() 
         parent_x = self.root.winfo_x()
         parent_y = self.root.winfo_y()
         parent_width = self.root.winfo_width()
@@ -750,12 +700,21 @@ class PdfUtilityApp:
         
         about_win.geometry(f"+{x_coordinate}+{y_coordinate}")
 
-
 # --- Main Application Runner ---
 if __name__ == "__main__":
-    # Perform dependency check before initializing the main GUI
+    # 1. Perform dependency check first.
+    #    This will call sys.exit() if any required library is missing.
     perform_dependency_check()
 
+    # 2. If perform_dependency_check() didn't exit, it means all checked
+    #    libraries were found by the checker's temporary imports.
+    #    Now, do the *actual* imports for the application to use.
+    #    These will be available in the global scope for your functions and classes.
+    import PyPDF2
+    from PIL import Image
+    from pdf2image import convert_from_path
+
+    # 3. Now that dependencies are confirmed and imported, initialize and run the GUI.
     root = tk.Tk()
     app = PdfUtilityApp(root)
     root.mainloop()
